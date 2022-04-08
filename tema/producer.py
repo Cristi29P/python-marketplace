@@ -47,6 +47,6 @@ class Producer(Thread):
                 while quantity < product[1]:
                     if self.marketplace.publish(self.producer_id, product[0]):
                         time.sleep(product[2])
-                        break
+                        quantity += 1
+                        continue
                     time.sleep(self.republish_wait_time)
-                    quantity += 1
