@@ -5,7 +5,7 @@ Computer Systems Architecture Course
 Assignment 1
 March 2021
 """
-from threading import BoundedSemaphore, current_thread
+from threading import Lock, current_thread
 
 
 class Marketplace:
@@ -36,16 +36,15 @@ class Marketplace:
         # All the carts issued in the marketplace (id_cart, [products])
         self.carts = {}
 
-        # Binary semaphores used as mutexes
-        self.register_producer_semaphore = BoundedSemaphore()
-        self.register_cart_semaphore = BoundedSemaphore()
-        self.add_to_cart_semaphore = BoundedSemaphore()
+        # Mutexes
+        self.register_producer_lock = Lock()
+        self.register_cart_semaphore = Lock()
 
     def register_producer(self):
         """
         Returns an id for the producer that calls this.
         """
-        with self.register_producer_semaphore:
+        with self.register_producer_lock:
             id_producer = self.number_of_producers
             self.number_of_producers += 1
 
@@ -65,14 +64,13 @@ class Marketplace:
         :returns True or False. If the caller receives False, it should wait and then try again.
         """
 
-        if len(self.producers_queues[int(producer_id)]) == self.queue_size_per_producer:
-            return False
+        if len(self.producers_queues[int(producer_id)]) < self.queue_size_per_producer:
+            self.producers_queues[int(producer_id)].append(product)
+            self.products_avail.append(product)
+            self.products[product] = int(producer_id)
+            return True
 
-        self.producers_queues[int(producer_id)].append(product)
-        self.products_avail.append(product)
-        self.products[product] = int(producer_id)
-
-        return True
+        return False
 
     def new_cart(self):
         """
@@ -99,22 +97,16 @@ class Marketplace:
 
         :returns True or False. If the caller receives False, it should wait and then try again
         """
-        with self.add_to_cart_semaphore:
-            if product in self.products_avail:
-
-                self.products_avail.remove(product)
-
-                for (producer, p_list) in self.producers_queues.items():
-                    # Remove the product from the producer's queue
-                    if product in p_list:
-                        p_list.remove(product)
-                        self.products[product] = producer
-                        break
-
-                self.carts[cart_id].append(product)
-                return True
-
-            return False
+        with self.register_cart_semaphore:
+            if product not in self.products_avail:
+                return False
+            self.products_avail.remove(product)
+            self.carts[cart_id].append(product)
+            for prod_queue in self.producers_queues.values():
+                if product in prod_queue:
+                    prod_queue.remove(product)
+                    break
+            return True
 
     def remove_from_cart(self, cart_id, product):
         """
@@ -127,10 +119,8 @@ class Marketplace:
         :param product: the product to remove from cart
         """
         if product in self.carts[cart_id]:
-            producer_id = self.products[product]
-            if not len(self.producers_queues[producer_id]) == self.queue_size_per_producer:
-                self.carts[cart_id].remove(product)
-                self.products_avail.append(product)
+            self.carts[cart_id].remove(product)
+            self.products_avail.append(product)
 
     def place_order(self, cart_id):
         """
@@ -140,7 +130,7 @@ class Marketplace:
         :param cart_id: id cart
         """
         popped = self.carts.pop(cart_id)
-        with self.register_producer_semaphore:
+        with self.register_producer_lock:
             for item in popped:
                 print(f"{current_thread().name} bought {item}")
             return popped

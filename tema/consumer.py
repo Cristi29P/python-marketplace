@@ -37,13 +37,10 @@ class Consumer(Thread):
         self.marketplace = marketplace
         self.retry_wait_time = retry_wait_time
 
-        self.name = kwargs["name"]
-
     def run(self):
         for cart in self.carts:
             cart_id = self.marketplace.new_cart()
             for elements in cart:
-
                 quantity_so_far = 0
                 while quantity_so_far < elements["quantity"]:
                     if elements["type"] == "remove":
