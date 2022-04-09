@@ -5,7 +5,7 @@ Computer Systems Architecture Course
 Assignment 1
 March 2021
 """
-from threading import Semaphore, current_thread
+from threading import BoundedSemaphore, current_thread
 
 
 class Marketplace:
@@ -37,11 +37,9 @@ class Marketplace:
         self.carts = {}
 
         # Binary semaphores used as mutexes
-        self.register_producer_semaphore = Semaphore(1)
-        self.register_cart_semaphore = Semaphore(1)
-        self.add_to_cart_semaphore = Semaphore(1)
-        self.print_semaphore = Semaphore(1)
-        self.publish_semaphore = Semaphore(1)
+        self.register_producer_semaphore = BoundedSemaphore()
+        self.register_cart_semaphore = BoundedSemaphore()
+        self.add_to_cart_semaphore = BoundedSemaphore()
 
     def register_producer(self):
         """
@@ -50,8 +48,9 @@ class Marketplace:
         with self.register_producer_semaphore:
             id_producer = self.number_of_producers
             self.number_of_producers += 1
-            self.producers_queues[id_producer] = []
-            return id_producer
+
+        self.producers_queues[id_producer] = []
+        return id_producer
 
     def publish(self, producer_id, product):
         """
@@ -71,9 +70,7 @@ class Marketplace:
 
         self.producers_queues[int(producer_id)].append(product)
         self.products_avail.append(product)
-
-        with self.publish_semaphore:
-            self.products[product] = int(producer_id)
+        self.products[product] = int(producer_id)
 
         return True
 
@@ -86,8 +83,9 @@ class Marketplace:
         with self.register_cart_semaphore:
             id_cart = self.number_of_carts
             self.number_of_carts += 1
-            self.carts[id_cart] = []
-            return id_cart
+
+        self.carts[id_cart] = []
+        return id_cart
 
     def add_to_cart(self, cart_id, product):
         """
@@ -141,9 +139,8 @@ class Marketplace:
         :type cart_id: Int
         :param cart_id: id cart
         """
-
-        with self.print_semaphore:
-            popped = self.carts.pop(cart_id)
+        popped = self.carts.pop(cart_id)
+        with self.register_producer_semaphore:
             for item in popped:
                 print(f"{current_thread().name} bought {item}")
             return popped
