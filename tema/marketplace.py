@@ -5,12 +5,13 @@ Computer Systems Architecture Course
 Assignment 1
 March 2021
 """
-
+import logging
+import time
 from threading import Lock, current_thread
+from logging.handlers import RotatingFileHandler
 
 
 class Marketplace:
-
     """
     Class that represents the Marketplace. It's the central part of the implementation.
     The producers and consumers use its methods concurrently.
@@ -44,6 +45,14 @@ class Marketplace:
         self.register_producer_lock = Lock()
         self.register_cart_semaphore = Lock()
 
+        self.logger = logging.getLogger("myLogger")
+        self.handler = RotatingFileHandler('marketplace.log', maxBytes=25000, backupCount=10)
+        self.handler.setLevel(logging.INFO)
+        self.handler.setFormatter(logging.Formatter('%(asctime)s %(levelname)8s: %(message)s'))
+        logging.Formatter.converter = time.gmtime
+        self.logger.setLevel(logging.INFO)
+        self.logger.addHandler(self.handler)
+
     def register_producer(self):
 
         """
@@ -54,6 +63,8 @@ class Marketplace:
             id_producer = self.number_of_producers
             self.producers_queues[id_producer] = []
             self.number_of_producers += 1
+            self.logger.info('Producer id returned: %d for thread %s',
+                             id_producer, current_thread().name)
 
         return id_producer
 
@@ -72,6 +83,8 @@ class Marketplace:
         """
 
         if len(self.producers_queues[int(producer_id)]) < self.queue_size_per_producer:
+            self.logger.info('Producer %s with id %d published %s',
+                             current_thread().name, producer_id, product)
             self.producers_queues[int(producer_id)].append(product)
             self.products_avail.append(product)
             self.products[product] = int(producer_id)
@@ -89,6 +102,8 @@ class Marketplace:
 
         with self.register_cart_semaphore:
             id_cart = self.number_of_carts
+            self.logger.info('New_cart with id %d for consumer %s ',
+                             id_cart, current_thread().name)
             self.carts[id_cart] = []
             self.number_of_carts += 1
 
@@ -109,6 +124,8 @@ class Marketplace:
         """
 
         with self.register_cart_semaphore:
+            self.logger.info('Product %s bought by consumer %s and added to cart %d',
+                             product, current_thread().name, cart_id)
             if product not in self.products_avail:
                 return False
 
@@ -132,6 +149,8 @@ class Marketplace:
         :param product: the product to remove from cart
         """
 
+        self.logger.info('Removed product %s from cart %d by consumer %s',
+                         product, cart_id, current_thread().name)
         if product in self.carts[cart_id]:
             self.products_avail.append(self.carts[cart_id].pop(self.carts[cart_id].index(product)))
 
@@ -146,6 +165,8 @@ class Marketplace:
 
         popped = self.carts.pop(cart_id)
         with self.register_producer_lock:
+            self.logger.info('Ordered placed for cart %d by consumer %s for product list %s',
+                             cart_id, current_thread().name, popped)
             for item in popped:
                 print(f"{current_thread().name} bought {item}")
         return popped
