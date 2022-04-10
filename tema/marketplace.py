@@ -19,7 +19,9 @@ class TestMarketplace(unittest.TestCase):
     and sequential environment.
     """
     def setUp(self):
-        # Create a dummy marketplace with a max_queue_size_per_producer of 3
+        """
+        Create a dummy marketplace with a max_queue_size_per_producer of 3
+        """
         self.marketplace = Marketplace(3)
 
     def test_register_producer(self):
@@ -97,8 +99,47 @@ class TestMarketplace(unittest.TestCase):
         self.assertIn("oua", self.marketplace.carts[id0], "Product should have been inside!")
         self.assertFalse(self.marketplace.add_to_cart(id0, "oua"), "Cannot add same product twice!")
 
-        self.assertFalse(self.marketplace.add_to_cart(id0, "ceai"), "Inexistent product")
+        self.assertFalse(self.marketplace.add_to_cart(id0, "ceai"), "Nonexistent product")
         self.assertNotIn("ceai", self.marketplace.carts[id0], "Product should have not been added!")
+
+    def test_remove_from_cart(self):
+        """
+        Check if the removed products are no longer in the market
+        """
+        producer = self.marketplace.register_producer()
+        id0 = self.marketplace.new_cart()
+        self.marketplace.publish(producer, "oua")
+        self.marketplace.publish(producer, "ulei")
+
+        self.assertIn("oua", self.marketplace.products_avail, "Product not available!")
+        self.assertIn("ulei", self.marketplace.products_avail, "Product not available!")
+
+        self.marketplace.add_to_cart(id0, "oua")
+        self.marketplace.add_to_cart(id0, "ulei")
+
+        self.assertNotIn("oua", self.marketplace.products_avail, "Product available!")
+        self.assertNotIn("ulei", self.marketplace.products_avail, "Product available!")
+
+        self.marketplace.remove_from_cart(id0, "oua")
+        self.assertNotIn("oua", self.marketplace.carts[id0], "Product should have been removed!")
+        self.assertIn("oua", self.marketplace.products_avail, "Product should be available now!")
+
+        self.marketplace.remove_from_cart(id0, "ulei")
+        self.assertNotIn("ulei", self.marketplace.carts[id0], "Product should have been removed!")
+        self.assertIn("ulei", self.marketplace.products_avail, "Product should be available now!")
+
+    def test_place_order(self):
+        """
+        Test if the consumer gets all the requested products
+        """
+        producer = self.marketplace.register_producer()
+        id0 = self.marketplace.new_cart()
+        self.marketplace.publish(producer, "oua")
+        self.marketplace.publish(producer, "ulei")
+        self.marketplace.add_to_cart(id0, "oua")
+        self.marketplace.add_to_cart(id0, "ulei")
+
+        self.assertEqual(self.marketplace.place_order(id0), ["oua", "ulei"], "Not the same!")
 
 
 class Marketplace:
