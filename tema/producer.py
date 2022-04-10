@@ -41,10 +41,14 @@ class Producer(Thread):
     def run(self):
         while True:
             for product in self.products:
+                # For each product try to add in the queue as much quantity as possible
                 quantity = 0
                 while quantity < product[1]:
+                    # Try to add until there is an empty place in the queue
                     if self.marketplace.publish(self.producer_id, product[0]):
+                        # Sleep if managed to add the product
                         time.sleep(product[2])
                         quantity += 1
                         continue
+                    # Sleep after publishing one product
                     time.sleep(self.republish_wait_time)

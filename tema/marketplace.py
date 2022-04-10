@@ -43,7 +43,6 @@ class TestMarketplace(unittest.TestCase):
         """
         Checks if the producer is allowed to publish 3 products at most
         """
-
         producer = self.marketplace.register_producer()
         self.assertTrue(self.marketplace.publish(producer, "branza"),
                         "Failed to publish first product!")
@@ -55,10 +54,6 @@ class TestMarketplace(unittest.TestCase):
         self.assertEqual(self.marketplace.products_avail[0], "branza", "Unavailable product")
         self.assertEqual(self.marketplace.products_avail[1], "oua", "Unavailable product")
         self.assertEqual(self.marketplace.products_avail[2], "lapte", "Unavailable product")
-
-        self.assertEqual(self.marketplace.products["branza"], producer, "Wrong producer id")
-        self.assertEqual(self.marketplace.products["oua"], producer, "Wrong producer id")
-        self.assertEqual(self.marketplace.products["lapte"], producer, "Wrong producer id")
 
         self.assertIn("branza", self.marketplace.producers_queues[producer], "Not added!")
         self.assertIn("oua", self.marketplace.producers_queues[producer], "Not added!")
@@ -72,7 +67,6 @@ class TestMarketplace(unittest.TestCase):
         """
         Checks the if the id's issued are correct and carts are actually added.
         """
-
         id0 = self.marketplace.new_cart()
         id1 = self.marketplace.new_cart()
         id2 = self.marketplace.new_cart()
@@ -168,8 +162,6 @@ class Marketplace:
         self.producers_queues = {}
         # Products available in the marketplace
         self.products_avail = []
-        # Products added by each producer (product, id_prod)
-        self.products = {}
         # All the carts issued in the marketplace (id_cart, [products])
         self.carts = {}
 
@@ -218,14 +210,14 @@ class Marketplace:
 
         :returns True or False. If the caller receives False, it should wait and then try again.
         """
-
+        # Check if there is still room in the producer's queue
         if len(self.producers_queues[int(producer_id)]) < self.queue_size_per_producer:
             self.logger.info('Producer %s with id %d published %s',
                              current_thread().name, producer_id, product)
             converted_id = int(producer_id)
+            # Append the product
             self.producers_queues[converted_id].append(product)
             self.products_avail.append(product)
-            self.products[product] = converted_id
             return True
 
         return False
@@ -239,10 +231,13 @@ class Marketplace:
         """
 
         with self.register_cart_semaphore:
+            # Get the current id
             id_cart = self.number_of_carts
             self.logger.info('New_cart with id %d for consumer %s ',
                              id_cart, current_thread().name)
+            # Add an empty cart (i.e. empty list)
             self.carts[id_cart] = []
+            # Increment the number of carts to obtain the next id
             self.number_of_carts += 1
 
         return id_cart
@@ -264,13 +259,15 @@ class Marketplace:
         with self.register_cart_semaphore:
             self.logger.info('Product %s bought by consumer %s and added to cart %d',
                              product, current_thread().name, cart_id)
+            # If product is not available we skip
             if product not in self.products_avail:
                 return False
-
+            # Otherwise, we make it unavailable for other consumers and add it to our own cart
             self.products_avail.remove(product)
             self.carts[cart_id].append(product)
             for prod_queue in self.producers_queues.values():
                 if product in prod_queue:
+                    # Remove the product from the producer's queue, so he can add other products
                     prod_queue.remove(product)
                     break
         return True
@@ -286,10 +283,11 @@ class Marketplace:
         :type product: Product
         :param product: the product to remove from cart
         """
-
+        # If product is indeed in the cart
         if product in self.carts[cart_id]:
             self.logger.info('Removed product %s from cart %d by consumer %s',
                              product, cart_id, current_thread().name)
+            # Make it available again for other consumers
             self.products_avail.append(self.carts[cart_id].pop(self.carts[cart_id].index(product)))
 
     def place_order(self, cart_id):
@@ -301,6 +299,7 @@ class Marketplace:
         :param cart_id: id cart
         """
 
+        # Remove the requested cart with its products
         popped = self.carts.pop(cart_id)
         with self.register_producer_lock:
             self.logger.info('Ordered placed for cart %d by consumer %s for product list %s',
