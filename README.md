@@ -75,6 +75,8 @@ Resources
 * [Python vs Java](https://realpython.com/oop-in-python-vs-java/)
 * [Thread safety](https://docs.python.org/3/faq/library.html#what-kinds-of-global-value-mutation-are-thread-safe)
 * [Python thread sync](http://dabeaz.blogspot.com/2009/09/python-thread-synchronization.html)
+* [Logging](https://stackoverflow.com/questions/40088496/how-to-use-pythons-rotatingfilehandler)
+* [Unit testing](https://docs.python.org/3/library/unittest.html)
 
 Git
 -
