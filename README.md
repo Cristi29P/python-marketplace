@@ -102,5 +102,6 @@ Resources
 Git
 -
 1. Link: [python-marketplace](https://github.com/Cristi29P/python-marketplace.git)
-2. The repository should go public after the homework's hard deadline (18th of April). Otherwise,
-please let me know on e-mail or Microsoft Teams if any problems were encountered.
+2. The repository should go public after the homework's hard deadline (18th of April).
+Otherwise, please let me know on e-mail or Microsoft Teams if any problems were
+encountered.
